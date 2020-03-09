@@ -7,7 +7,6 @@ tmdb.API_KEY = '6c49e12fc2c8d787401a036a357c81f1'
 
 showid = 2122
 
-isSeasonView = True
 
 def get_episodes():
     tv = tmdb.TV(showid)
@@ -37,29 +36,39 @@ def init_curses():
     curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_CYAN)
     return window
 
-def input_stream(screen):
+def load_episodes(screen, episodes):
+    pos = screen.current
+    ep_list = episodes[pos]
+    screen.new_items(ep_list)
+
+def input_stream(screen, episodes):
     """Waiting an input and run a proper method according to type of input"""
+    isSeasonView = True
     while True:
         screen.display()
 
         ch = screen.window.getch()
-        if ch == curses.KEY_UP:
+        if ch == curses.KEY_BACKSPACE:
+            screen.scroll(screen.UP)
+        elif ch == curses.KEY_UP:
             screen.scroll(screen.UP)
         elif ch == curses.KEY_DOWN:
             screen.scroll(screen.DOWN)
         elif ch == curses.KEY_LEFT:
-            screen.paging(screen.UP)
+            screen.scroll(screen.DOWN)
         elif ch == curses.KEY_RIGHT:
-            screen.paging(screen.DOWN)
-        elif ch == 'j':
-            break
+            if isSeasonView:
+                load_episodes(screen, episodes)
+                isSeasonView = False
+            else: 
+                screen.scroll(screen.DOWN)
         elif ch == curses.ascii.ESC:
             break
 
 
-def run_loop(screen):
+def run_loop(screen, episodes):
         try:
-            input_stream(screen)
+            input_stream(screen, episodes)
         except KeyboardInterrupt:
             pass
         finally:
@@ -75,8 +84,8 @@ def main():
     seasons = []
     for i in range(len(episodes)):
         seasons.append("Season {}".format(i+1))
-    scroll_screen =Screen(seasons, win)
-    run_loop(scroll_screen)
+    scroll_screen = Screen(seasons, win)
+    run_loop(scroll_screen, episodes)
 
 class Screen(object):
     UP = -1
@@ -184,6 +193,14 @@ class Screen(object):
         if (direction == self.DOWN) and (current_page < self.page):
             self.top += self.max_lines
             return
+        
+    def new_items(self, new_list):
+        self.items = new_list
+        self.max_lines = curses.LINES
+        self.top = 0
+        self.bottom = len(self.items)
+        self.current = 0
+        self.page = self.bottom // self.max_lines
 
     def display(self):
         """Display the items on window"""
