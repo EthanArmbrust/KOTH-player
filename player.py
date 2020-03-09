@@ -7,6 +7,8 @@ tmdb.API_KEY = '6c49e12fc2c8d787401a036a357c81f1'
 
 showid = 2122
 
+isSeasonView = True
+
 def get_episodes():
     tv = tmdb.TV(showid)
     response = tv.info()
@@ -22,11 +24,65 @@ def get_episodes():
         seasons.append(episodes)
     return seasons
 
+def init_curses():
+    window = curses.initscr()
+    window.keypad(True)
+
+    curses.noecho()
+    curses.cbreak()
+    curses.curs_set(0)
+
+    curses.start_color()
+    curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
+    curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_CYAN)
+    return window
+
+def input_stream(screen):
+    """Waiting an input and run a proper method according to type of input"""
+    while True:
+        screen.display()
+
+        ch = screen.window.getch()
+        if ch == curses.KEY_UP:
+            screen.scroll(screen.UP)
+        elif ch == curses.KEY_DOWN:
+            screen.scroll(screen.DOWN)
+        elif ch == curses.KEY_LEFT:
+            screen.paging(screen.UP)
+        elif ch == curses.KEY_RIGHT:
+            screen.paging(screen.DOWN)
+        elif ch == 'j':
+            break
+        elif ch == curses.ascii.ESC:
+            break
+
+
+def run_loop(screen):
+        try:
+            input_stream(screen)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            curses.endwin()
+def main():
+    try:
+        win = init_curses()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        curses.endwin()
+    episodes = get_episodes()
+    seasons = []
+    for i in range(len(episodes)):
+        seasons.append("Season {}".format(i+1))
+    scroll_screen =Screen(seasons, win)
+    run_loop(scroll_screen)
+
 class Screen(object):
     UP = -1
     DOWN = 1
 
-    def __init__(self, items):
+    def __init__(self, items, win):
         """ Initialize the screen window
 
         Attributes
@@ -61,14 +117,15 @@ class Screen(object):
         Returns
             None
         """
-        self.window = None
+        self.window = win
 
         self.width = 0
         self.height = 0
 
-        self.init_curses()
-
         self.items = items
+
+        self.current = curses.color_pair(2)
+        self.height, self.width = self.window.getmaxyx()
 
         self.max_lines = curses.LINES
         self.top = 0
@@ -76,31 +133,9 @@ class Screen(object):
         self.current = 0
         self.page = self.bottom // self.max_lines
 
-    def init_curses(self):
-        """Setup the curses"""
-        self.window = curses.initscr()
-        self.window.keypad(True)
-
-        curses.noecho()
-        curses.cbreak()
-        curses.curs_set(0)
-
-        curses.start_color()
-        curses.init_pair(1, curses.COLOR_CYAN, curses.COLOR_BLACK)
-        curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_CYAN)
-
-        self.current = curses.color_pair(2)
-
-        self.height, self.width = self.window.getmaxyx()
 
     def run(self):
         """Continue running the TUI until get interrupted"""
-        try:
-            self.input_stream()
-        except KeyboardInterrupt:
-            pass
-        finally:
-            curses.endwin()
 
 
     def scroll(self, direction):
@@ -160,26 +195,6 @@ class Screen(object):
             else:
                 self.window.addstr(idx, 0, item, curses.color_pair(1))
         self.window.refresh()
-
-def input_stream(screen):
-    """Waiting an input and run a proper method according to type of input"""
-    while True:
-        screen.display()
-
-        ch = screen.window.getch()
-        if screen == curses.KEY_UP:
-            screen.scroll(screen.UP)
-        elif ch == curses.KEY_DOWN:
-            screen.scroll(screen.DOWN)
-        elif ch == curses.KEY_LEFT:
-            screen.paging(screen.UP)
-        elif ch == curses.KEY_RIGHT:
-            screen.paging(screen.DOWN)
-        elif ch == curses.ascii.ESC:
-            break
-
-def main():
-
 
 if __name__ == '__main__':
     main()
