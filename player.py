@@ -19,9 +19,13 @@ def get_episodes():
         season_resp = tv_season.info()
         n_episodes = len(season_resp["episodes"])
         for j in range(n_episodes):
-            episodes.append(season_resp["episodes"][j]["name"])
+            episodes.append("{}. ".format(j+1) + season_resp["episodes"][j]["name"])
         seasons.append(episodes)
     return seasons
+
+def get_episode_info(season_num, episode_num):
+    response = tmdb.TV_Episodes(showid, season_num, episode_num)
+    return response.info()["air_date"], response.info()["name"], response.info()["overview"]
 
 def init_curses():
     window = curses.initscr()
@@ -41,9 +45,17 @@ def load_episodes(screen, episodes):
     ep_list = episodes[pos]
     screen.new_items(ep_list)
 
-def input_stream(screen, episodes):
+def load_seasons(screen, episodes):
+    pos = screen.current
+    se_list = []
+    for i in range(len(episodes)):
+        se_list.append("Season {}".format(i+1))
+    screen.new_items(se_list)
+
+def input_stream(screen, episodes, win):
     """Waiting an input and run a proper method according to type of input"""
     isSeasonView = True
+    season_pos = 0
     while True:
         screen.display()
 
@@ -55,25 +67,35 @@ def input_stream(screen, episodes):
         elif ch == curses.KEY_DOWN:
             screen.scroll(screen.DOWN)
         elif ch == curses.KEY_LEFT:
-            screen.scroll(screen.DOWN)
+            if isSeasonView:
+                pass
+            else:
+                load_seasons(screen,episodes)
+                while screen.current < season_pos:
+                    screen.scroll(screen.DOWN)
+                isSeasonView = True
         elif ch == curses.KEY_RIGHT:
             if isSeasonView:
+                season_pos = screen.current
                 load_episodes(screen, episodes)
                 isSeasonView = False
             else: 
-                screen.scroll(screen.DOWN)
+                episode_box = win.subwin(5,20, 5, 5)
+                episode_box.box()
+                win.getch()
         elif ch == curses.ascii.ESC:
             break
 
 
-def run_loop(screen, episodes):
+def run_loop(screen, episodes, win):
         try:
-            input_stream(screen, episodes)
+            input_stream(screen, episodes, win)
         except KeyboardInterrupt:
             pass
         finally:
             curses.endwin()
 def main():
+    #print(get_episode_info(2,1))
     try:
         win = init_curses()
     except KeyboardInterrupt:
@@ -85,7 +107,7 @@ def main():
     for i in range(len(episodes)):
         seasons.append("Season {}".format(i+1))
     scroll_screen = Screen(seasons, win)
-    run_loop(scroll_screen, episodes)
+    run_loop(scroll_screen, episodes, win)
 
 class Screen(object):
     UP = -1
