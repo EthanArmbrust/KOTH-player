@@ -2,11 +2,27 @@ import tmdbsimple as tmdb
 import json
 import curses
 import curses.textpad
+import glob
+import os
+from natsort import natsorted, ns
 
 tmdb.API_KEY = '6c49e12fc2c8d787401a036a357c81f1'
 
+media_player = 'iina'
+
+show_root = '/Users/ITCS/King of the Hill'
 showid = 2122
 
+def get_episode_file(season, episode):
+    seasons = glob.glob(show_root + '/Season*')
+    seasons = natsorted(seasons, alg=ns.IGNORECASE)
+    season_dir = seasons[season - 1]
+    file_types = ('/*.avi','/*.mkv', '/*.mp4')
+    ep_list = []
+    for files in file_types:
+        ep_list.extend(glob.glob(season_dir + files))
+    ep_list = natsorted(ep_list, alg=ns.IGNORECASE)
+    return ep_list[episode - 1]
 
 def get_episodes():
     tv = tmdb.TV(showid)
@@ -80,9 +96,7 @@ def input_stream(screen, episodes, win):
                 load_episodes(screen, episodes)
                 isSeasonView = False
             else: 
-                episode_box = win.subwin(5,20, 5, 5)
-                episode_box.box()
-                win.getch()
+                os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + 1) + "\"")
         elif ch == curses.ascii.ESC:
             break
 
