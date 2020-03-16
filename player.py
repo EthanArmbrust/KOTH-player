@@ -13,6 +13,34 @@ media_player = 'iina'
 show_root = '/Users/ITCS/King of the Hill'
 showid = 2122
 
+def split_message(message, width):
+    message_array = []
+    words = message.split()
+    current_line = ""
+    while len(words) > 0:
+        if len(current_line) + len(words[0]) + 1 <= width:
+            pass
+        else:
+            message_array.append(current_line)
+            current_line = ""
+        current_line += words[0] + " "
+        words.pop(0)
+    if current_line != "":
+        message_array.append(current_line)
+    return message_array
+
+def print_fullscreen_message(window, message):
+    height, width = window.getmaxyx()
+    arr = split_message(message, width)
+    start_row = (height // 2) - (len(arr) // 2)
+    window.clear()
+    for i, line in enumerate(arr):
+        start_col = (width // 2) - (len(line) // 2)
+        window.addstr(start_row + i, start_col, line)
+    window.refresh()
+
+    
+
 def get_episode_file(season, episode):
     seasons = glob.glob(show_root + '/Season*')
     seasons = natsorted(seasons, alg=ns.IGNORECASE)
@@ -98,6 +126,7 @@ def input_stream(screen, episodes, win):
             else: 
                 os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + 1) + "\"")
         elif ch == curses.ascii.ESC:
+            print_fullscreen_message(win, "Exiting...")
             break
 
 
@@ -109,13 +138,13 @@ def run_loop(screen, episodes, win):
         finally:
             curses.endwin()
 def main():
-    #print(get_episode_info(2,1))
     try:
         win = init_curses()
     except KeyboardInterrupt:
         pass
     finally:
         curses.endwin()
+    print_fullscreen_message(win, "Getting show information...")
     episodes = get_episodes()
     seasons = []
     for i in range(len(episodes)):
