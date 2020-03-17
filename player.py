@@ -29,9 +29,11 @@ def split_message(message, width):
         message_array.append(current_line)
     return message_array
 
-def print_fullscreen_message(window, message):
+def print_episode_info(window, season, episode):
     height, width = window.getmaxyx()
-    arr = split_message(message, width)
+    airdate, ep_name, message = get_episode_info(season, episode)
+    arr = [ep_name, "Season {} Episode {}".format(season, episode), airdate, ""]
+    arr = arr + split_message(message, width - 2)
     start_row = (height // 2) - (len(arr) // 2)
     window.clear()
     for i, line in enumerate(arr):
@@ -39,7 +41,15 @@ def print_fullscreen_message(window, message):
         window.addstr(start_row + i, start_col, line)
     window.refresh()
 
-    
+def print_fullscreen_message(window, message):
+    height, width = window.getmaxyx()
+    arr = split_message(message, width - 2)
+    start_row = (height // 2) - (len(arr) // 2)
+    window.clear()
+    for i, line in enumerate(arr):
+        start_col = (width // 2) - (len(line) // 2)
+        window.addstr(start_row + i, start_col, line)
+    window.refresh()
 
 def get_episode_file(season, episode):
     seasons = glob.glob(show_root + '/Season*')
@@ -96,6 +106,22 @@ def load_seasons(screen, episodes):
         se_list.append("Season {}".format(i+1))
     screen.new_items(se_list)
 
+def get_episode_description(season, episode):
+    ep_data = tmdb.TV_Episodes(show_id, season, episode)
+    response = ep_data.info()
+    return ep_data.description
+
+def info_win(season, episode):
+    win = curses.newwin(18, 70, 3, 10)
+    print_fullscreen_message(win, "Fetching episode info...")
+    '''
+    airdate, name, description = get_episode_info(season,episode)
+    print_fullscreen_message(win, description)
+    '''
+    print_episode_info(win, season, episode)
+    win.box()
+    win.getch()
+
 def input_stream(screen, episodes, win):
     """Waiting an input and run a proper method according to type of input"""
     isSeasonView = True
@@ -118,13 +144,20 @@ def input_stream(screen, episodes, win):
                 while screen.current < season_pos:
                     screen.scroll(screen.DOWN)
                 isSeasonView = True
-        elif ch == curses.KEY_RIGHT:
+        elif ch == curses.KEY_RIGHT or ch == ord('p'):
             if isSeasonView:
                 season_pos = screen.current
                 load_episodes(screen, episodes)
                 isSeasonView = False
             else: 
                 os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + 1) + "\"")
+        elif ch == ord('i') and not isSeasonView:
+            win_height, win_width = win.getmaxyx()
+            win_height = win_height * 0.8
+            win_width = win_width * 0.8
+            pos_x = win_width * 0.1
+            pos_y = win_height * 0.1
+            info_win(season_pos + 1, screen.current + 1)
         elif ch == curses.ascii.ESC:
             print_fullscreen_message(win, "Exiting...")
             break
