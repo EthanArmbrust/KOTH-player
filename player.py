@@ -148,8 +148,7 @@ def input_stream(screen, episodes, win):
             pos_x = int(win_width // 8)
             pos_y = int(win_height // 8)
             info_win(season_pos + 1, screen.current + screen.top + 1, win_width, win_height, pos_x, pos_y)
-        elif ch == curses.ascii.ESC:
-            print_fullscreen_message(win, "Exiting...")
+        elif ch == ord('q'):
             break
 
 
