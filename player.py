@@ -95,29 +95,19 @@ def init_curses():
     return window
 
 def load_episodes(screen, episodes):
-    pos = screen.current
+    pos = screen.current + screen.top
     ep_list = episodes[pos]
     screen.new_items(ep_list)
 
 def load_seasons(screen, episodes):
-    pos = screen.current
     se_list = []
     for i in range(len(episodes)):
         se_list.append("Season {}".format(i+1))
     screen.new_items(se_list)
 
-def get_episode_description(season, episode):
-    ep_data = tmdb.TV_Episodes(show_id, season, episode)
-    response = ep_data.info()
-    return ep_data.description
-
-def info_win(season, episode):
-    win = curses.newwin(18, 70, 3, 10)
+def info_win(season, episode, width, height, pos_x, pos_y):
+    win = curses.newwin(height, width, pos_y, pos_x)
     print_fullscreen_message(win, "Fetching episode info...")
-    '''
-    airdate, name, description = get_episode_info(season,episode)
-    print_fullscreen_message(win, description)
-    '''
     print_episode_info(win, season, episode)
     win.box()
     win.getch()
@@ -141,23 +131,23 @@ def input_stream(screen, episodes, win):
                 pass
             else:
                 load_seasons(screen,episodes)
-                while screen.current < season_pos:
+                while screen.current + screen.top < season_pos:
                     screen.scroll(screen.DOWN)
                 isSeasonView = True
         elif ch == curses.KEY_RIGHT or ch == ord('p'):
             if isSeasonView:
-                season_pos = screen.current
+                season_pos = screen.current + screen.top
                 load_episodes(screen, episodes)
                 isSeasonView = False
             else: 
-                os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + 1) + "\"")
+                os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + screen.top + 1) + "\"")
         elif ch == ord('i') and not isSeasonView:
             win_height, win_width = win.getmaxyx()
-            win_height = win_height * 0.8
-            win_width = win_width * 0.8
-            pos_x = win_width * 0.1
-            pos_y = win_height * 0.1
-            info_win(season_pos + 1, screen.current + 1)
+            win_height = int(win_height * 0.8)
+            win_width = int(win_width * 0.8)
+            pos_x = int(win_width // 8)
+            pos_y = int(win_height // 8)
+            info_win(season_pos + 1, screen.current + screen.top + 1, win_width, win_height, pos_x, pos_y)
         elif ch == curses.ascii.ESC:
             print_fullscreen_message(win, "Exiting...")
             break
