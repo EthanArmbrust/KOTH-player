@@ -4,6 +4,7 @@ import curses
 import curses.textpad
 import glob
 import os
+import random
 from natsort import natsorted, ns
 
 tmdb.API_KEY = '6c49e12fc2c8d787401a036a357c81f1'
@@ -28,6 +29,21 @@ def split_message(message, width):
     if current_line != "":
         message_array.append(current_line)
     return message_array
+
+def random_episode(episodes):
+    episode_nums = []
+    total_episodes = 0
+    for s in episodes:
+        episode_nums.append(len(s))
+        total_episodes += len(s)
+    rand = random.randrange(total_episodes)
+    
+    season = 1
+    while rand > episode_nums[season - 1]:
+        rand -= episode_nums[season - 1]
+        season += 1
+    return season, rand
+
 
 def print_episode_info(window, season, episode):
     height, width = window.getmaxyx()
@@ -63,6 +79,9 @@ def get_episode_file(season, episode):
     return ep_list[episode - 1]
 
 def get_episodes():
+    cache_path = ".cache/{}/episodes.json".format(showid)
+    if path.exists(cache_path):
+        return json.loads(cache_path)
     tv = tmdb.TV(showid)
     response = tv.info()
     n_seasons = tv.number_of_seasons
@@ -75,6 +94,8 @@ def get_episodes():
         for j in range(n_episodes):
             episodes.append("{}. ".format(j+1) + season_resp["episodes"][j]["name"])
         seasons.append(episodes)
+    with open(cache_path, 'w') as f:
+        json.dump(seasons, f)
     return seasons
 
 def get_episode_info(season_num, episode_num):
@@ -162,16 +183,16 @@ def run_loop(screen, episodes, win):
 def main():
     try:
         win = init_curses()
+        print_fullscreen_message(win, "Getting show information...")
+        episodes = get_episodes()
+        seasons = []
+        for i in range(len(episodes)):
+            seasons.append("Season {}".format(i+1))
+        scroll_screen = Screen(seasons, win)
     except KeyboardInterrupt:
         pass
     finally:
         curses.endwin()
-    print_fullscreen_message(win, "Getting show information...")
-    episodes = get_episodes()
-    seasons = []
-    for i in range(len(episodes)):
-        seasons.append("Season {}".format(i+1))
-    scroll_screen = Screen(seasons, win)
     run_loop(scroll_screen, episodes, win)
 
 class Screen(object):
