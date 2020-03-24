@@ -142,7 +142,12 @@ def info_win(season, episode, width, height, pos_x, pos_y):
     print_fullscreen_message(win, "Fetching episode info...")
     print_episode_info(win, season, episode)
     win.box()
-    win.getch()
+    while True:
+        ch = win.getch()
+        if ch == ord('q'):
+            break
+        if ch == ord('p'):
+            os.system(media_player + " \"" + get_episode_file(season, episode) + "\"")
 
 def input_stream(screen, episodes, win):
     """Waiting an input and run a proper method according to type of input"""
@@ -150,6 +155,11 @@ def input_stream(screen, episodes, win):
     season_pos = 0
     while True:
         screen.display()
+        win_height, win_width = win.getmaxyx()
+        win_height = int(win_height * 0.8)
+        win_width = int(win_width * 0.8)
+        pos_x = int(win_width // 8)
+        pos_y = int(win_height // 8)
 
         ch = screen.window.getch()
         if ch == curses.KEY_BACKSPACE:
@@ -174,12 +184,10 @@ def input_stream(screen, episodes, win):
             else: 
                 os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + screen.top + 1) + "\"")
         elif ch == ord('i') and not isSeasonView:
-            win_height, win_width = win.getmaxyx()
-            win_height = int(win_height * 0.8)
-            win_width = int(win_width * 0.8)
-            pos_x = int(win_width // 8)
-            pos_y = int(win_height // 8)
             info_win(season_pos + 1, screen.current + screen.top + 1, win_width, win_height, pos_x, pos_y)
+        elif ch == ord('r'):
+            s, e = random_episode(episodes)
+            info_win(s, e, win_width, win_height, pos_x, pos_y)
         elif ch == ord('q'):
             break
 
