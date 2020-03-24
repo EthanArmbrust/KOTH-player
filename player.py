@@ -4,6 +4,8 @@ import curses
 import curses.textpad
 import glob
 import os
+import pickle
+from os import path
 import random
 from natsort import natsorted, ns
 
@@ -79,9 +81,12 @@ def get_episode_file(season, episode):
     return ep_list[episode - 1]
 
 def get_episodes():
-    cache_path = ".cache/{}/episodes.json".format(showid)
+    cache_path = ".cache/{}/episodes".format(showid)
     if path.exists(cache_path):
-        return json.loads(cache_path)
+        afile = open(cache_path, 'rb')
+        data = pickle.load(afile)
+        afile.close()
+        return data
     tv = tmdb.TV(showid)
     response = tv.info()
     n_seasons = tv.number_of_seasons
@@ -94,8 +99,14 @@ def get_episodes():
         for j in range(n_episodes):
             episodes.append("{}. ".format(j+1) + season_resp["episodes"][j]["name"])
         seasons.append(episodes)
-    with open(cache_path, 'w') as f:
-        json.dump(seasons, f)
+
+    try:
+        os.makedirs(os.path.dirname(cache_path))
+    except:
+        pass
+    afile = open(cache_path, 'wb')
+    pickle.dump(seasons, afile)
+    afile.close()
     return seasons
 
 def get_episode_info(season_num, episode_num):
