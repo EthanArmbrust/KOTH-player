@@ -348,7 +348,7 @@ class Screen(object):
         self.window.addstr(0, (self.width // 2) - (len(self.header) // 2), self.header, curses.color_pair(1))
         for idx, item in enumerate(self.items[self.top:self.top + self.max_lines - 1], self.upperBound):
             # Highlight the current cursor line
-            if idx == self.current + 1:
+            if idx == self.current + self.upperBound:
                 self.window.addstr(idx, 0, item, curses.color_pair(2))
             else:
                 self.window.addstr(idx, 0, item, curses.color_pair(1))
