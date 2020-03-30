@@ -8,6 +8,8 @@ import pickle
 from os import path
 import random
 from natsort import natsorted, ns
+from tkinter import Tk
+from tkinter.filedialog import askdirectory
 
 tmdb.API_KEY = '6c49e12fc2c8d787401a036a357c81f1'
 
@@ -86,11 +88,12 @@ def get_episodes():
     cache_path = ".cache/{}/episodes".format(showid)
     if path.exists(cache_path):
         afile = open(cache_path, 'rb')
-        data = pickle.load(afile)
+        (show_name, data) = pickle.load(afile)
         afile.close()
-        return data
+        return (show_name, data)
     tv = tmdb.TV(showid)
     response = tv.info()
+    show_name = tv.name
     n_seasons = tv.number_of_seasons
     seasons = []
     for i in range(n_seasons):
@@ -107,9 +110,9 @@ def get_episodes():
     except:
         pass
     afile = open(cache_path, 'wb')
-    pickle.dump(seasons, afile)
+    pickle.dump((show_name, seasons), afile)
     afile.close()
-    return seasons
+    return (show_name, seasons)
 
 def get_episode_info(season_num, episode_num):
     response = tmdb.TV_Episodes(showid, season_num, episode_num)
@@ -128,16 +131,19 @@ def init_curses():
     curses.init_pair(2, curses.COLOR_BLACK, curses.COLOR_CYAN)
     return window
 
-def load_episodes(screen, episodes):
+def load_episodes(screen, episodes, show_name):
     pos = screen.current + screen.top
     ep_list = episodes[pos]
-    screen.new_items(ep_list, "King of the Hill: Season {}".format(pos + 1))
+    screen.new_items(ep_list, "{}: Season {}".format(show_name, pos + 1))
 
-def load_seasons(screen, episodes):
+def load_seasons(screen, episodes, show_name):
     se_list = []
     for i in range(len(episodes)):
         se_list.append("Season {}".format(i+1))
-    screen.new_items(se_list, "King of the Hill")
+    screen.new_items(se_list, show_name)
+
+def load_shows(screen, shows):
+    screen.new_items(shows, "Shows")
 
 def info_win(season, episode, width, height, pos_x, pos_y):
     win = curses.newwin(height, width, pos_y, pos_x)
@@ -151,8 +157,12 @@ def info_win(season, episode, width, height, pos_x, pos_y):
         if ch == ord('p'):
             os.system(media_player + " \"" + get_episode_file(season, episode) + "\"")
 
-def input_stream(screen, episodes, win):
+def input_stream(screen, episodes, show_name, win):
     """Waiting an input and run a proper method according to type of input"""
+    # 0 = Show View
+    # 1 = Season View
+    # 2 = Episode View
+    view = 0
     isSeasonView = True
     season_pos = 0
     while True:
@@ -174,14 +184,14 @@ def input_stream(screen, episodes, win):
             if isSeasonView:
                 pass
             else:
-                load_seasons(screen,episodes)
+                load_seasons(screen,episodes, show_name)
                 while screen.current + screen.top < season_pos:
                     screen.scroll(screen.DOWN)
                 isSeasonView = True
         elif ch == curses.KEY_RIGHT or ch == ord('p'):
             if isSeasonView:
                 season_pos = screen.current + screen.top
-                load_episodes(screen, episodes)
+                load_episodes(screen, episodes, show_name)
                 isSeasonView = False
             else: 
                 os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + screen.top + 1) + "\"")
@@ -194,27 +204,29 @@ def input_stream(screen, episodes, win):
             break
 
 
-def run_loop(screen, episodes, win):
+def run_loop(screen, episodes, show_name, win):
         try:
-            input_stream(screen, episodes, win)
+            input_stream(screen, episodes, show_name, win)
         except KeyboardInterrupt:
             pass
         finally:
             curses.endwin()
 def main():
+    Tk().withdraw()
+    filename = askdirectory()
     try:
         win = init_curses()
         print_fullscreen_message(win, "Getting show information...")
-        episodes = get_episodes()
+        show_name, episodes = get_episodes()
         seasons = []
         for i in range(len(episodes)):
             seasons.append("Season {}".format(i+1))
-        scroll_screen = Screen(seasons, win, "King of the Hill")
+        scroll_screen = Screen(seasons, win, show_name)
     except KeyboardInterrupt:
         pass
     finally:
         curses.endwin()
-    run_loop(scroll_screen, episodes, win)
+    run_loop(scroll_screen, episodes, show_name, win)
 
 class Screen(object):
     UP = -1
