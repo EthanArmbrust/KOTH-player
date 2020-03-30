@@ -13,7 +13,8 @@ from tkinter.filedialog import askdirectory
 
 tmdb.API_KEY = '6c49e12fc2c8d787401a036a357c81f1'
 
-media_player = 'iina'
+media_player = 'mpv'
+extra_options = "--really-quiet"
 config_path = "config.json"
 
 
@@ -72,23 +73,6 @@ def print_fullscreen_message(window, message):
         window.addstr(start_row + i, start_col, line)
     window.refresh()
 
-def form_entry(window, message):
-    height, width = window.getmaxyx()
-    print_fullscreen_message(window, message)
-
-    curses.echo()
-    curses.nocbreak()
-    curses.curs_set(1)
-
-    window.addstr(height - 3, 5, ">")
-    window.move(height - 3, 6)
-    user_input = window.getch()
-
-    curses.noecho()
-    curses.cbreak()
-    curses.curs_set(0)
-
-    return user_input
 
 def get_episode_file(season, episode, show_root):
     seasons = glob.glob(show_root + '/Season*')
@@ -176,11 +160,37 @@ def init_shows():
     return shows
 
 def add_show(shows, name, show_id, path):
+    for s in shows:
+        if s["id"] == show_id:
+            return shows
     shows.append({"name": name, "id": show_id, "path": path})
     with open(config_path, 'w') as f:
         json.dump(shows, f)
     return shows
 
+def form_entry(window, message):
+    height, width = window.getmaxyx()
+    print_fullscreen_message(window, message)
+    window.box()
+
+    curses.echo()
+    curses.nocbreak()
+    curses.curs_set(1)
+
+    window.addstr(height - 3, 5, ">")
+    window.move(height - 3, 6)
+    user_input = window.getch()
+
+    curses.noecho()
+    curses.cbreak()
+    curses.curs_set(0)
+
+    return user_input
+
+def form_win(width, height, pos_x, pos_y, message):
+    win = curses.newwin(height, width, pos_y, pos_x)
+    win.box()
+    return form_entry(win, message)
 
 def info_win(showid, season, episode, width, height, pos_x, pos_y, show_root):
     win = curses.newwin(height, width, pos_y, pos_x)
@@ -192,7 +202,7 @@ def info_win(showid, season, episode, width, height, pos_x, pos_y, show_root):
         if ch == ord('q'):
             break
         if ch == ord('p'):
-            os.system(media_player + " \"" + get_episode_file(season, episode, show_root) + "\"")
+            os.system(media_player + " \"" + get_episode_file(season, episode, show_root) + "\" " + extra_options)
 
 def input_stream(screen, shows, win):
     """Waiting an input and run a proper method according to type of input"""
@@ -222,8 +232,6 @@ def input_stream(screen, shows, win):
             elif ch == curses.KEY_LEFT:
                 pass
             elif ch == curses.KEY_RIGHT:
-                #TODO
-                #Get show and load episodes
                 print_fullscreen_message(win, "Getting show information...")
                 pos = screen.current + screen.top
                 show = shows[pos]
@@ -235,12 +243,16 @@ def input_stream(screen, shows, win):
                 while screen.current + screen.top < season_pos:
                     screen.scroll(screen.DOWN)
                 view = 1
+            elif ch == ord('f'):
+                form_win(win_width, win_height, pos_x, pos_y, "Enter your text here")
         elif view == 1: #Season view
             if ch == curses.KEY_UP:
                 screen.scroll(screen.UP)
             elif ch == curses.KEY_DOWN:
                 screen.scroll(screen.DOWN)
             elif ch == curses.KEY_LEFT:
+                view = 0
+                season_pos = 0
                 load_shows(screen, shows)
             elif ch == curses.KEY_RIGHT:
                 season_pos = screen.current + screen.top
@@ -261,13 +273,13 @@ def input_stream(screen, shows, win):
                     screen.scroll(screen.DOWN)
                 view = 1
             elif ch == curses.KEY_RIGHT or ch == ord('p'):
-                os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + screen.top + 1, show_root) + "\"")
+                os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + screen.top + 1, show_root) + "\" " + extra_options)
             elif ch == ord('i'):
                 info_win(showid, season_pos + 1, screen.current + screen.top + 1, win_width, win_height, pos_x, pos_y, show_root)
             elif ch == ord('r'):
                 s, e = random_episode(episodes)
                 info_win(showid, s, e, win_width, win_height, pos_x, pos_y, show_root)
-        elif ch == ord('q'):
+        if ch == ord('q'):
             break
 
 
@@ -296,6 +308,7 @@ def main():
         win = init_curses()
         print_fullscreen_message(win, "Getting show list...")
         shows = init_shows()
+        shows = add_show(shows, "Gravity Falls", 40075, "/Users/ITCS/Gravity Falls")
         scroll_screen = Screen([], win, shows)
         load_shows(scroll_screen, shows)
     except KeyboardInterrupt:
