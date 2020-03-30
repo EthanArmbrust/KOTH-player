@@ -57,6 +57,8 @@ def print_episode_info(window, season, episode):
     for i, line in enumerate(arr):
         start_col = (width // 2) - (len(line) // 2)
         window.addstr(start_row + i, start_col, line)
+    window_controls = "[Q] - Close window : [P] - Play episode"
+    window.addstr(height - 2, (width // 2) - (len(window_controls) // 2), window_controls)
     window.refresh()
 
 def print_fullscreen_message(window, message):
@@ -129,13 +131,13 @@ def init_curses():
 def load_episodes(screen, episodes):
     pos = screen.current + screen.top
     ep_list = episodes[pos]
-    screen.new_items(ep_list)
+    screen.new_items(ep_list, "King of the Hill: Season {}".format(pos + 1))
 
 def load_seasons(screen, episodes):
     se_list = []
     for i in range(len(episodes)):
         se_list.append("Season {}".format(i+1))
-    screen.new_items(se_list)
+    screen.new_items(se_list, "King of the Hill")
 
 def info_win(season, episode, width, height, pos_x, pos_y):
     win = curses.newwin(height, width, pos_y, pos_x)
@@ -207,7 +209,7 @@ def main():
         seasons = []
         for i in range(len(episodes)):
             seasons.append("Season {}".format(i+1))
-        scroll_screen = Screen(seasons, win)
+        scroll_screen = Screen(seasons, win, "King of the Hill")
     except KeyboardInterrupt:
         pass
     finally:
@@ -218,7 +220,7 @@ class Screen(object):
     UP = -1
     DOWN = 1
 
-    def __init__(self, items, win):
+    def __init__(self, items, win, header=""):
         """ Initialize the screen window
 
         Attributes
@@ -260,14 +262,20 @@ class Screen(object):
 
         self.items = items
 
-        self.current = curses.color_pair(2)
         self.height, self.width = self.window.getmaxyx()
 
         self.max_lines = curses.LINES
         self.top = 0
         self.bottom = len(self.items)
-        self.current = 0
         self.page = self.bottom // self.max_lines
+        self.current = 0
+
+        self.header = header
+        if self.header == "":
+            self.upperBound = 0
+        else:
+            self.upperBound = 1
+
 
 
     def run(self):
@@ -286,7 +294,7 @@ class Screen(object):
             return
         # Down direction scroll overflow
         # next cursor position touch the max lines, but absolute position of max lines could not touch the bottom
-        if (direction == self.DOWN) and (next_line == self.max_lines) and (self.top + self.max_lines < self.bottom):
+        if (direction == self.DOWN) and (next_line == self.max_lines) and (self.top + self.max_lines - 1 < self.bottom):
             self.top += direction
             return
         # Scroll up
@@ -296,7 +304,7 @@ class Screen(object):
             return
         # Scroll down
         # next cursor position is above max lines, and absolute position of next cursor could not touch the bottom
-        if (direction == self.DOWN) and (next_line < self.max_lines) and (self.top + next_line < self.bottom):
+        if (direction == self.DOWN) and (next_line < self.max_lines) and (self.top + next_line  - 1 < self.bottom):
             self.current = next_line
             return
 
@@ -321,20 +329,26 @@ class Screen(object):
             self.top += self.max_lines
             return
         
-    def new_items(self, new_list):
+    def new_items(self, new_list, header=""):
         self.items = new_list
         self.max_lines = curses.LINES
         self.top = 0
         self.bottom = len(self.items)
         self.current = 0
         self.page = self.bottom // self.max_lines
+        self.header = header
+        if self.header == "":
+            self.upperBound = 0
+        else:
+            self.upperBound = 1
 
     def display(self):
         """Display the items on window"""
         self.window.erase()
-        for idx, item in enumerate(self.items[self.top:self.top + self.max_lines]):
+        self.window.addstr(0, (self.width // 2) - (len(self.header) // 2), self.header, curses.color_pair(1))
+        for idx, item in enumerate(self.items[self.top:self.top + self.max_lines - 1], self.upperBound):
             # Highlight the current cursor line
-            if idx == self.current:
+            if idx == self.current + 1:
                 self.window.addstr(idx, 0, item, curses.color_pair(2))
             else:
                 self.window.addstr(idx, 0, item, curses.color_pair(1))
