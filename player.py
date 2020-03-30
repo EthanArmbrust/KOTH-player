@@ -14,9 +14,8 @@ from tkinter.filedialog import askdirectory
 tmdb.API_KEY = '6c49e12fc2c8d787401a036a357c81f1'
 
 media_player = 'iina'
+config_path = "config.json"
 
-show_root = '/Users/ITCS/King of the Hill'
-showid = 2122
 
 def split_message(message, width):
     message_array = []
@@ -49,9 +48,9 @@ def random_episode(episodes):
     return season, rand
 
 
-def print_episode_info(window, season, episode):
+def print_episode_info(window, season, episode, showid):
     height, width = window.getmaxyx()
-    airdate, ep_name, message = get_episode_info(season, episode)
+    airdate, ep_name, message = get_episode_info(showid, season, episode)
     arr = [ep_name, "Season {} Episode {}".format(season, episode), airdate, ""]
     arr = arr + split_message(message, width - 2)
     start_row = (height // 2) - (len(arr) // 2)
@@ -73,7 +72,25 @@ def print_fullscreen_message(window, message):
         window.addstr(start_row + i, start_col, line)
     window.refresh()
 
-def get_episode_file(season, episode):
+def form_entry(window, message):
+    height, width = window.getmaxyx()
+    print_fullscreen_message(window, message)
+
+    curses.echo()
+    curses.nocbreak()
+    curses.curs_set(1)
+
+    window.addstr(height - 3, 5, ">")
+    window.move(height - 3, 6)
+    user_input = window.getch()
+
+    curses.noecho()
+    curses.cbreak()
+    curses.curs_set(0)
+
+    return user_input
+
+def get_episode_file(season, episode, show_root):
     seasons = glob.glob(show_root + '/Season*')
     seasons = natsorted(seasons, alg=ns.IGNORECASE)
     season_dir = seasons[season - 1]
@@ -84,7 +101,7 @@ def get_episode_file(season, episode):
     ep_list = natsorted(ep_list, alg=ns.IGNORECASE)
     return ep_list[episode - 1]
 
-def get_episodes():
+def get_episodes(showid):
     cache_path = ".cache/{}/episodes".format(showid)
     if path.exists(cache_path):
         afile = open(cache_path, 'rb')
@@ -114,7 +131,7 @@ def get_episodes():
     afile.close()
     return (show_name, seasons)
 
-def get_episode_info(season_num, episode_num):
+def get_episode_info(showid, season_num, episode_num):
     response = tmdb.TV_Episodes(showid, season_num, episode_num)
     return response.info()["air_date"], response.info()["name"], response.info()["overview"]
 
@@ -143,28 +160,51 @@ def load_seasons(screen, episodes, show_name):
     screen.new_items(se_list, show_name)
 
 def load_shows(screen, shows):
-    screen.new_items(shows, "Shows")
+    show_names = []
+    for s in shows:
+        show_names.append(s["name"])
+    screen.new_items(show_names, "Shows")
 
-def info_win(season, episode, width, height, pos_x, pos_y):
+def init_shows():
+    if path.exists(config_path):
+        with open(config_path) as f:
+            shows = json.load(f)
+    else:
+        shows = [{"name": "King of the Hill", "id": 2122, "path": "/Users/ITCS/King of the Hill"}]
+        with open(config_path, 'w') as f:
+            json.dump(shows, f)
+    return shows
+
+def add_show(shows, name, show_id, path):
+    shows.append({"name": name, "id": show_id, "path": path})
+    with open(config_path, 'w') as f:
+        json.dump(shows, f)
+    return shows
+
+
+def info_win(showid, season, episode, width, height, pos_x, pos_y, show_root):
     win = curses.newwin(height, width, pos_y, pos_x)
     print_fullscreen_message(win, "Fetching episode info...")
-    print_episode_info(win, season, episode)
+    print_episode_info(win, season, episode, showid)
     win.box()
     while True:
         ch = win.getch()
         if ch == ord('q'):
             break
         if ch == ord('p'):
-            os.system(media_player + " \"" + get_episode_file(season, episode) + "\"")
+            os.system(media_player + " \"" + get_episode_file(season, episode, show_root) + "\"")
 
-def input_stream(screen, episodes, show_name, win):
+def input_stream(screen, shows, win):
     """Waiting an input and run a proper method according to type of input"""
     # 0 = Show View
     # 1 = Season View
     # 2 = Episode View
     view = 0
-    isSeasonView = True
     season_pos = 0
+    showid = 0
+    episodes = []
+    show_name = ""
+    show_root = ""
     while True:
         screen.display()
         win_height, win_width = win.getmaxyx()
@@ -174,59 +214,95 @@ def input_stream(screen, episodes, show_name, win):
         pos_y = int(win_height // 8)
 
         ch = screen.window.getch()
-        if ch == curses.KEY_BACKSPACE:
-            screen.scroll(screen.UP)
-        elif ch == curses.KEY_UP:
-            screen.scroll(screen.UP)
-        elif ch == curses.KEY_DOWN:
-            screen.scroll(screen.DOWN)
-        elif ch == curses.KEY_LEFT:
-            if isSeasonView:
+        if view == 0:   #Show view
+            if ch == curses.KEY_UP:
+                screen.scroll(screen.UP)
+            elif ch == curses.KEY_DOWN:
+                screen.scroll(screen.DOWN)
+            elif ch == curses.KEY_LEFT:
                 pass
-            else:
+            elif ch == curses.KEY_RIGHT:
+                #TODO
+                #Get show and load episodes
+                print_fullscreen_message(win, "Getting show information...")
+                pos = screen.current + screen.top
+                show = shows[pos]
+                showid = show["id"]
+                show_name, episodes = get_episodes(showid)
+                show_root = show["path"]
+
                 load_seasons(screen,episodes, show_name)
                 while screen.current + screen.top < season_pos:
                     screen.scroll(screen.DOWN)
-                isSeasonView = True
-        elif ch == curses.KEY_RIGHT or ch == ord('p'):
-            if isSeasonView:
+                view = 1
+        elif view == 1: #Season view
+            if ch == curses.KEY_UP:
+                screen.scroll(screen.UP)
+            elif ch == curses.KEY_DOWN:
+                screen.scroll(screen.DOWN)
+            elif ch == curses.KEY_LEFT:
+                load_shows(screen, shows)
+            elif ch == curses.KEY_RIGHT:
                 season_pos = screen.current + screen.top
                 load_episodes(screen, episodes, show_name)
-                isSeasonView = False
-            else: 
-                os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + screen.top + 1) + "\"")
-        elif ch == ord('i') and not isSeasonView:
-            info_win(season_pos + 1, screen.current + screen.top + 1, win_width, win_height, pos_x, pos_y)
-        elif ch == ord('r'):
-            s, e = random_episode(episodes)
-            info_win(s, e, win_width, win_height, pos_x, pos_y)
+                view = 2
+            elif ch == ord('r'):
+                s, e = random_episode(episodes)
+                info_win(showid, s, e, win_width, win_height, pos_x, pos_y, show_root)
+
+        elif view == 2: #Episode view
+            if ch == curses.KEY_UP:
+                screen.scroll(screen.UP)
+            elif ch == curses.KEY_DOWN:
+                screen.scroll(screen.DOWN)
+            elif ch == curses.KEY_LEFT:
+                load_seasons(screen, episodes, show_name)
+                while screen.current + screen.top < season_pos:
+                    screen.scroll(screen.DOWN)
+                view = 1
+            elif ch == curses.KEY_RIGHT or ch == ord('p'):
+                os.system(media_player + " \"" + get_episode_file(season_pos + 1, screen.current + screen.top + 1, show_root) + "\"")
+            elif ch == ord('i'):
+                info_win(showid, season_pos + 1, screen.current + screen.top + 1, win_width, win_height, pos_x, pos_y, show_root)
+            elif ch == ord('r'):
+                s, e = random_episode(episodes)
+                info_win(showid, s, e, win_width, win_height, pos_x, pos_y, show_root)
         elif ch == ord('q'):
             break
 
 
-def run_loop(screen, episodes, show_name, win):
+def run_loop(screen, shows, win):
         try:
-            input_stream(screen, episodes, show_name, win)
+            input_stream(screen, shows, win)
         except KeyboardInterrupt:
             pass
         finally:
             curses.endwin()
 def main():
+    '''
     Tk().withdraw()
     filename = askdirectory()
+    shows = init_shows()
+    shows = add_show(shows, "Gravity Falls", 40075, "/Users/ITCS/Gravity Falls")
+    print(shows)
+
+    query = 'Gravity Falls'
+    search = tmdb.Search()
+    response = search.tv(query=query)
+    print(response['results'][0]['name'], response['results'][0]['id'])
+
+    '''
     try:
         win = init_curses()
-        print_fullscreen_message(win, "Getting show information...")
-        show_name, episodes = get_episodes()
-        seasons = []
-        for i in range(len(episodes)):
-            seasons.append("Season {}".format(i+1))
-        scroll_screen = Screen(seasons, win, show_name)
+        print_fullscreen_message(win, "Getting show list...")
+        shows = init_shows()
+        scroll_screen = Screen([], win, shows)
+        load_shows(scroll_screen, shows)
     except KeyboardInterrupt:
         pass
     finally:
         curses.endwin()
-    run_loop(scroll_screen, episodes, show_name, win)
+    run_loop(scroll_screen, shows, win)
 
 class Screen(object):
     UP = -1
