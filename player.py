@@ -274,7 +274,7 @@ class Screen(object):
         if self.header == "":
             self.upperBound = 0
         else:
-            self.upperBound = 1
+            self.upperBound = 2
 
 
 
@@ -294,7 +294,7 @@ class Screen(object):
             return
         # Down direction scroll overflow
         # next cursor position touch the max lines, but absolute position of max lines could not touch the bottom
-        if (direction == self.DOWN) and (next_line == self.max_lines) and (self.top + self.max_lines - 1 < self.bottom):
+        if (direction == self.DOWN) and (next_line == self.max_lines - self.upperBound) and (self.top + self.max_lines - self.upperBound < self.bottom):
             self.top += direction
             return
         # Scroll up
@@ -304,7 +304,7 @@ class Screen(object):
             return
         # Scroll down
         # next cursor position is above max lines, and absolute position of next cursor could not touch the bottom
-        if (direction == self.DOWN) and (next_line < self.max_lines) and (self.top + next_line  - 1 < self.bottom):
+        if (direction == self.DOWN) and (next_line < self.max_lines - self.upperBound) and (self.top + next_line  - self.upperBound < self.bottom):
             self.current = next_line
             return
 
@@ -340,13 +340,13 @@ class Screen(object):
         if self.header == "":
             self.upperBound = 0
         else:
-            self.upperBound = 1
+            self.upperBound = 2
 
     def display(self):
         """Display the items on window"""
         self.window.erase()
         self.window.addstr(0, (self.width // 2) - (len(self.header) // 2), self.header, curses.color_pair(1))
-        for idx, item in enumerate(self.items[self.top:self.top + self.max_lines - 1], self.upperBound):
+        for idx, item in enumerate(self.items[self.top:self.top + self.max_lines - self.upperBound], self.upperBound):
             # Highlight the current cursor line
             if idx == self.current + self.upperBound:
                 self.window.addstr(idx, 0, item, curses.color_pair(2))
