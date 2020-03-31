@@ -192,6 +192,42 @@ def form_win(width, height, pos_x, pos_y, message):
     win.box()
     return form_entry(win, message)
 
+def yes_no_win(width, height, pos_x, pos_y, message):
+    win = curses.newwin(height, width, pos_y, pos_x)
+    print_fullscreen_message(win, message)
+    win.box()
+    while True:
+        ch = win.getch()
+        if ch == ord('y'):
+            return True
+        if ch == ord('n'):
+            return False
+
+def browse_new_path(width, height, pos_x, pos_y):
+    win = curses.newwin(height, width, pos_y, pos_x)
+    arr = split_message("Enter path where show is located", width - 2)
+    start_row = (height // 2) - (len(arr) // 2)
+    win.clear()
+    for i, line in enumerate(arr):
+        start_col = (width // 2) - (len(line) // 2)
+        win.addstr(start_row + i, start_col, line)
+    input_line_start = start_row + len(arr) + 2
+    input_box_width = width - (2 + 8 + 7 + 7)
+    user_path = " " * input_box_width
+    win.addstr(input_line_start, 2, "Path: ")
+    path_pos = 8
+    win.addstr(input_line_start, path_pos, user_path, curses.color_pair(2))
+    enter_pos = 8 + len(user_path)
+    win.addstr(input_line_start, enter_pos, " Enter ")
+    browse_pos = enter_pos + len(" Enter ")
+    win.addstr(input_line_start, browse_pos, " Browse ")
+    win.box()
+    win.refresh()
+    while True:
+        ch = win.getch()
+    
+    
+
 def info_win(showid, season, episode, width, height, pos_x, pos_y, show_root):
     win = curses.newwin(height, width, pos_y, pos_x)
     print_fullscreen_message(win, "Fetching episode info...")
@@ -244,7 +280,16 @@ def input_stream(screen, shows, win):
                     screen.scroll(screen.DOWN)
                 view = 1
             elif ch == ord('f'):
-                form_win(win_width, win_height, pos_x, pos_y, "Enter your text here")
+                input = form_win(win_width, win_height, pos_x, pos_y, "Enter your text here")
+                search = tmdb.Search()
+                response = search.tv(query=input)
+                win_info = curses.newwin(win_width, win_height, pos_x, pos_y)
+                print_fullscreen_message(win_info, response['results'][0]['name'])
+                win_info.getch()
+            elif ch == ord('b'):
+                browse_new_path(win_width, win_height, pos_x, pos_y)
+        
+
         elif view == 1: #Season view
             if ch == curses.KEY_UP:
                 screen.scroll(screen.UP)
@@ -302,8 +347,8 @@ def main():
     search = tmdb.Search()
     response = search.tv(query=query)
     print(response['results'][0]['name'], response['results'][0]['id'])
-
     '''
+
     try:
         win = init_curses()
         print_fullscreen_message(win, "Getting show list...")
