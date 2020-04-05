@@ -223,10 +223,38 @@ def browse_new_path(width, height, pos_x, pos_y):
     win.addstr(input_line_start, browse_pos, " Browse ")
     win.box()
     win.refresh()
+
+    cursor_pos = 0 #0: path entry, 1: enter, 2: browse
+
     while True:
+        win.refresh()
         ch = win.getch()
-    
-    
+        if cursor_pos == 0:
+            if ch == ord('l'):
+                win.addstr(input_line_start, path_pos, user_path)
+                win.addstr(input_line_start, enter_pos, " Enter ", curses.color_pair(2))
+                win.addstr(input_line_start, browse_pos, " Browse ")
+            elif ch == curses.KEY_ENTER:
+                pass
+        elif cursor_pos == 1:
+            if ch == curses.KEY_LEFT:
+                pass
+            if ch == curses.KEY_RIGHT:
+                pass
+            if ch == curses.KEY_ENTER:
+                pass
+        elif cursor_pos == 2:
+            if ch == curses.KEY_ENTER:
+                pass
+            if ch == curses.KEY_LEFT:
+                pass
+        if ch == ord('q'):
+
+            win.addstr(input_line_start, path_pos, user_path)
+            win.addstr(input_line_start, enter_pos, " Enter{}".format(cursor_pos), curses.color_pair(2))
+            win.addstr(input_line_start, browse_pos, " Browse ")
+            win.refresh()
+        win.addstr(0, 0, "{:3d}".format(ch))
 
 def info_win(showid, season, episode, width, height, pos_x, pos_y, show_root):
     win = curses.newwin(height, width, pos_y, pos_x)
